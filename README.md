@@ -1,4 +1,4 @@
-# AI Resume Scanner (Vite + React)
+﻿# AI Resume Scanner (Vite + React)
 
 Weighted, explainable ATS-style scoring with hard rejects and mobile-friendly flow.
 
