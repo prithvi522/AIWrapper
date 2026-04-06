@@ -1,0 +1,48 @@
+{
+  "name": "aiwrapper",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "build": {
+    "appId": "aiwrapper.desktop",
+    "files": [
+      "dist/**/*",
+      "electron/main.js",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "public"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:dev": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "desktop:dev": "npm run dev -- --host --port 5173 & npm run electron:dev",
+    "desktop:build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.2.1",
+    "electron-builder": "^24.13.3",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.0",
+    "vite": "^5.4.10"
+  }
+}

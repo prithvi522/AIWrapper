@@ -1,0 +1,281 @@
+import { useMemo, useRef, useState, useEffect } from 'react'
+import './App.css'
+
+function App() {
+  const [resumeText, setResumeText] = useState(defaultResume)
+  const [jobDescription, setJobDescription] = useState(defaultJD)
+  const [apiKey, setApiKey] = useState('')
+  const [baseUrl, setBaseUrl] = useState(
+    'https://api.openai.com/v1/chat/completions',
+  )
+  const [model, setModel] = useState('gpt-4o-mini')
+  const [temperature, setTemperature] = useState(0.2)
+  const [status, setStatus] = useState('Ready')
+  const [output, setOutput] = useState('Run a scan to see results here.')
+  const [loading, setLoading] = useState(false)
+  const [fileName, setFileName] = useState('')
+  const [fileNote, setFileNote] = useState('Supports PDF, image, or text files.')
+  const [hasResult, setHasResult] = useState(false)
+
+  const systemPrompt = useMemo(
+    () =>
+      [
+        'You are an enterprise ATS reviewer.',
+        'Return compact sections:',
+        'SCORE (0-100) + 1-line reason;',
+        'STRENGTHS x3; RISKS x3;',
+        'GAPS (ranked missing keywords from JD if given);',
+        'REWRITES x3 tailored to JD with metrics.',
+        'Keep concise, scannable, JSON-ish blocks.',
+      ].join(' '),
+    [],
+  )
+
+  const handleFile = async (file: File) => {
+    setFileName(file.name)
+    setFileNote('Reading file...')
+    try {
+      let text = ''
+      if (file.type.startsWith('text') || file.type.includes('json')) {
+        text = await file.text()
+      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        text = await file.text()
+        setFileNote('Loaded PDF. Text may be imperfect; please skim before running.')
+      } else if (file.type.startsWith('image')) {
+        setFileNote('Image added. OCR is not run here; paste extracted text if needed.')
+        return
+      } else {
+        text = await file.text()
+      }
+
+      if (text.trim().length === 0) {
+        setFileNote('Could not read text. Please paste manually.')
+        return
+      }
+
+      setResumeText(text)
+      setFileNote('File loaded. You can edit the text below.')
+    } catch (err) {
+      console.error(err)
+      setFileNote('Failed to read file. Paste text instead.')
+    }
+  }
+
+  const run = async () => {
+    setLoading(true)
+    setStatus('Calling model...')
+    setHasResult(false)
+    try {
+      const payload = [
+        'JOB DESCRIPTION:',
+        jobDescription || 'Not provided',
+        '---',
+        'RESUME:',
+        resumeText,
+      ].join('\n')
+
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey || 'YOUR_API_KEY'}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: payload },
+          ],
+          max_tokens: 500,
+        }),
+      })
+
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+
+      const data = (await res.json()) as {
+        choices?: { message?: { content?: string } }[]
+      }
+      const content = data?.choices?.[0]?.message?.content
+      setOutput(content || 'No content returned.')
+      setStatus('Scan complete')
+      setHasResult(true)
+    } catch (err) {
+      console.error(err)
+      setOutput(fallbackSample)
+      setStatus('Fallback sample (request failed)')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resultsRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (hasResult && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [hasResult])
+
+  return (
+    <div className="page">
+      <header className="hero">
+        <div>
+          <p className="eyebrow">AI Resume Scanner</p>
+          <h1>Simple ATS-grade screening</h1>
+          <p className="lede">
+            Paste text or upload a PDF/photo. Add an optional job description.
+            One click returns score, strengths, risks, gaps, and tailored rewrites.
+          </p>
+          <div className="tags">
+            <span>Zero backend</span>
+            <span>JD-aware</span>
+            <span>Readable output</span>
+          </div>
+        </div>
+        <div className="connect card">
+          <div className="row">
+            <label>API key</label>
+            <input
+              type="password"
+              placeholder="sk-..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          </div>
+          <div className="row">
+            <label>Base URL</label>
+            <input
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://api.openai.com/v1/chat/completions"
+            />
+          </div>
+          <div className="row two">
+            <label>Model
+              <select value={model} onChange={(e) => setModel(e.target.value)}>
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="o1-mini">o1-mini</option>
+              </select>
+            </label>
+            <label>Temperature: {temperature.toFixed(2)}
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={temperature}
+                onChange={(e) => setTemperature(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div className="status">{status}</div>
+        </div>
+      </header>
+
+      <main className="layout">
+        <section className="card">
+          {hasResult && (
+            <div className="toast">
+              ? Resume scanned. Scrolling to results below.
+            </div>
+          )}
+          <div className="inputs">
+            <div className="block">
+              <div className="head">
+                <span>Resume</span>
+                <div className="actions">
+                  <label className="upload">
+                    Upload file
+                    <input
+                      type="file"
+                      accept=".txt,.md,.pdf,image/*,.doc,.docx,.rtf"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleFile(f)
+                      }}
+                    />
+                  </label>
+                  <button onClick={() => setResumeText(defaultResume)} className="ghost">
+                    Load sample
+                  </button>
+                </div>
+              </div>
+              <p className="note">{fileName ? `${fileName} • ${fileNote}` : fileNote}</p>
+              <textarea
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+                rows={14}
+              />
+            </div>
+            <div className="block">
+              <div className="head">
+                <span>Job description (optional)</span>
+                <button onClick={() => setJobDescription(defaultJD)} className="ghost">
+                  Load sample JD
+                </button>
+              </div>
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={14}
+              />
+            </div>
+          </div>
+          <div className="run-row">
+            <button className="primary" onClick={run} disabled={loading}>
+              {loading ? 'Running...' : 'Run scan'}
+            </button>
+            <span className="note">We send one chat-completion request from your browser.</span>
+          </div>
+        </section>
+
+        <section className="card" ref={resultsRef}>
+          <div className="head">
+            <span>Results</span>
+            <button
+              className="ghost"
+              onClick={() => navigator.clipboard.writeText(output)}
+            >
+              Copy
+            </button>
+          </div>
+          <div className="output-box">
+            <pre>{output}</pre>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+const defaultResume = `ROLE: Senior Frontend Engineer
+YEARS: 6
+STACK: React, TypeScript, Node
+BULLETS:
+- Built design system adopted by 9 squads; cut ship time by 40%.
+- Reduced TTI by 180ms via route-splitting and memoized hooks.
+- Mentored 4 juniors; added visual-regression checks.`
+
+const defaultJD = `Hiring: Staff Frontend Engineer
+Need: React, TypeScript, performance optimization, design systems, accessibility, testing
+Nice: Node, GraphQL, mentoring`
+
+const fallbackSample = `SCORE: 87/100 — strong alignment to design systems + performance.
+STRENGTHS:
+- Led design system used by many teams.
+- Proven performance wins (TTI, code-splitting).
+- People leadership + mentoring.
+RISKS:
+- Limited explicit accessibility outcomes.
+- Sparse testing/automation metrics.
+- Less depth on backend/data.
+GAPS (ranked): accessibility, a11y tooling, E2E testing, GraphQL, observability.
+REWRITES:
+1) Led cross-squad design system; cut feature lead time 40% across 9 squads.
+2) Improved TTI by 180ms via route-splitting, memoized hooks, and bundle audits.
+3) Mentored 4 engineers; introduced visual regression pipeline and storybook a11y checks.`
+
+export default App
