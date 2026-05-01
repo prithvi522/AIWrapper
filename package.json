@@ -20,11 +20,16 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "server": "node server/index.js",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "electron:dev": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
     "desktop:dev": "npm run dev -- --host --port 5173 & npm run electron:dev",
     "desktop:build": "npm run build && electron-builder"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.4.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
@@ -34,6 +39,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.2",
+    "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "^31.2.1",
     "electron-builder": "^24.13.3",
