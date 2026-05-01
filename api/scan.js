@@ -22,7 +22,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { resume, jobDescription, provider, model, temperature } = await req.json()
+    const { resume, jobDescription, provider, model, temperature, apiKey: bodyApiKey } = await req.json()
 
     const userInput = [
       "JOB DESCRIPTION:",
@@ -36,10 +36,10 @@ export default async function handler(req) {
     let apiUrl
 
     if (provider === "groq") {
-      apiKey = process.env.GROQ_API_KEY
+      apiKey = process.env.GROQ_API_KEY || bodyApiKey
       apiUrl = "https://api.groq.com/openai/v1/chat/completions"
     } else {
-      apiKey = process.env.OPENAI_API_KEY
+      apiKey = process.env.OPENAI_API_KEY || bodyApiKey
       apiUrl = "https://api.openai.com/v1/chat/completions"
     }
 
