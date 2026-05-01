@@ -31,6 +31,7 @@ function App() {
   const [provider, setProvider] = useState<"openai" | "groq">("openai")
   const [model, setModel] = useState("gpt-4o-mini")
   const [temperature, setTemperature] = useState(0.1)
+  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("resume-wrapper-apikey") || "")
   const [status, setStatus] = useState("Ready")
   const [output, setOutput] = useState("Run a scan to see results here.")
   const [loading, setLoading] = useState(false)
@@ -146,6 +147,7 @@ function App() {
         provider,
         model,
         temperature,
+        apiKey: apiKey.trim() || undefined,
       }
 
       const res = await fetch("/api/scan", {
@@ -158,10 +160,8 @@ function App() {
 
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
 
-      const data = (await res.json()) as {
-        choices?: { message?: { content?: string } }[]
-      }
-      const content = data?.choices?.[0]?.message?.content
+      const data = (await res.json()) as { content?: string }
+      const content = data?.content
       setOutput(content || "No content returned.")
       setStatus("Scan complete")
       setHasResult(true)
@@ -211,6 +211,10 @@ function App() {
     const payload = JSON.stringify({ resumeText, jobDescription, experience })
     localStorage.setItem("resume-wrapper-state", payload)
   }, [resumeText, jobDescription, experience])
+
+  useEffect(() => {
+    sessionStorage.setItem("resume-wrapper-apikey", apiKey)
+  }, [apiKey])
 
   const formattedLines: LineRender[] = useMemo(() => {
     return output.split("\n").map((line) => {
@@ -312,6 +316,18 @@ function App() {
               <option value="fresher">Fresher (max 1 page)</option>
               <option value="experienced">Experienced (max 2 pages)</option>
             </select>
+          </div>
+          <div className="row">
+            <label>{provider === "groq" ? "Groq" : "OpenAI"} API key
+              <input
+                type="password"
+                placeholder={`Paste your ${provider === "groq" ? "Groq" : "OpenAI"} API key`}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <p className="note" style={{ marginTop: "4px" }}>Key is stored in session memory only and cleared when you close the tab.</p>
           </div>
           <div className="status">{status}</div>
         </div>
